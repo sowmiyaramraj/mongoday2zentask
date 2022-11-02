@@ -1,0 +1,160 @@
+1) Find all the topics and tasks which are thought in the month of October
+
+db.topics.aggregate([
+  {
+    $lookup: {
+      from: "tasks",
+      localField: "id",
+      foreignField: "topic_id",
+      as: "taskinfo",
+    },
+  },
+  {
+    $match: {
+          $and: [
+              {
+                        "taskinfo.task_date": { $gt: ISODate ("2022-10-01") } ,
+              }, 
+              {
+                        "taskinfo.task_date": { $lt: ISODate ("2022-10-17") } ,  
+              },
+              
+           ],
+          },
+    },
+]);
+
+2) Find all the company drives which appeared between 15 oct-2020 and 31-oct-2020
+db.company_drives.find({
+ 
+ $and: [
+        {
+            "drive_date": { $gte: ISODate ("2022-10-15") },
+        },
+        {
+             "drive_date": { $lte: ISODate ("2022-10-31") },
+        }
+     ]
+    
+})
+
+3) Find all the company drives and students who are appeared for the placement.
+
+db.users_company_drives.aggregate(
+    {
+    $lookup: {
+           from: "company_drives",
+           localField: "company_drive_id",
+           foreignField: "id",
+           as: "companyDrives"
+         },
+    },
+        {   $unwind:"$companyDrives" },     // $unwind used for getting data in object or for one record only
+    {
+        $lookup: {
+               from: "users",
+               localField: "user_id",
+               foreignField: "userId",
+               as: "userData"
+             }
+    },
+         {   $unwind:"$userData" },     // $unwind used for getting data in object or for one record only
+   
+     // define which fields are you want to fetch
+    {   
+        $project:{
+            drive_name : "$companyDrives.name",
+            users : "$userData.name",
+        } 
+    },
+)
+4) Find the number of problems solved by the user in codekata
+db.users.aggregate(
+    [
+        {
+        $lookup:
+            {
+                from:"users_codekata",
+                localField:"userId",
+                foreignField:"user_id",
+                as:"noofproblems"
+            }
+        },
+         {
+    $project: {
+      _id: 0,
+      name:1,
+      "noofproblems": 1,
+    },
+  },
+    ]
+)
+5) Find all the mentors with who has the mentee's count more than 15
+
+db.mentors.aggregate([
+    {
+   $lookup: {
+          from: "mentor_users",
+          localField: "id",
+          foreignField: "mentor_id",
+          as: "users",
+        } 
+   },
+   {
+      $project: {
+          _id:0,
+          name:1,
+          "users_count": { "$size": "$users" }
+
+      }
+   },
+   {
+        "$match": {
+            "users_count": { "$gt": 15 }
+         }
+    }
+   
+]);
+
+6) Find the number of users who are absent and task is not submitted  between 15 oct-2020 and 31-oct-2020
+
+db.attendance.aggregate([
+  {
+    $lookup: {
+      from: "topics",
+      localField: "topicid",
+      foreignField: "topicid",
+      as: "topics",
+    },
+  },
+  {
+    $lookup: {
+      from: "tasks",
+      localField: "topicid",
+      foreignField: "topicid",
+      as: "tasks",
+    },
+  },
+  { $match: { $and: [{ attended: false }, { "tasks.submitted": false }] } },
+  {
+    $match: {
+      $and: [
+        {
+          $or: [
+            { "topics.topic_date": { $gte: new Date("15-oct-2020") } },
+            { "topics.topic_date": { $lte: new Date("31-oct-2020") } },
+          ],
+        },
+        {
+          $or: [
+            { "tasks.due_date": { $gte: new Date("15-oct-2020") } },
+            { "tasks.due_date": { $lte: new Date("31-oct-2020") } },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    $count: "No_of_students_absent",
+  },
+]);
